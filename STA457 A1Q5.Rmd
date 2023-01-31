@@ -1,0 +1,63 @@
+---
+title: "STA457 Assignment1 Q5"
+output: pdf_document
+date: "2023-01-27"
+---
+
+```{r setup}
+# install.packages("astsa")
+library(datasets)
+library(astsa)
+```
+
+## Part 1
+
+### Nile
+
+```{r}
+plot(Nile, main = "Nile", col = "blue")
+```
+
+Trend: it appears that the data has a downward trend for the part before 1920, and the rest of the data has no obvious upward or downward trend.
+
+Seasonality: no obvious seasonality in the plot.
+
+Stationarity: because we have a downward trend for the part before 1920, the data is non-stationary.
+
+\newpage
+### LakeHuron
+
+```{r}
+plot(LakeHuron, main = "LakeHuron", col = "purple")
+```
+
+Trend: there is a downward trend in the plot.
+
+Seasonality: no obvious seasonality in the plot.
+
+Stationarity: because we have a downward trend, the data is non-stationary.
+
+\newpage
+## Part 2
+
+### Nile
+
+```{r}
+acf(Nile, main = "Nile Autocorrelation", col = "blue")
+```
+
+For lags from 1 to 8, the values of autocorrelation are all outside of the 95% confidence interval, while for longer lags, most of them are within the confidence interval, and they are all positive. This suggest that there we cannot say there is no autocorrelation, especially for lags smaller than 9.
+
+\newpage
+### LakeHuron
+
+```{r}
+acf(LakeHuron, main = "LakeHuron Autocorrelation", col = "purple")
+```
+
+For lags from 1 to 9, the values of autocorrelation are all outside of the 95% confidence interval and it appears to be a long memory pattern. For lags longer than 9, there is no evidence against that there is no autocorrelation. For lags from 1 to 9, the plot suggest that there is some significant autocorrelation.
+
+
+
+
+
