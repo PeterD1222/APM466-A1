@@ -1,0 +1,222 @@
+---
+title: "APM466 Assignment 1"
+output: pdf_document
+date: "2023-01-31"
+---
+
+```{r setup}
+library(tidyverse)
+```
+
+## 2.2
+
+```{r}
+# Create the dataset that contains the 11 bonds' prices for 10 days.
+ISIN = c("CA135087H490", "CA135087M359", "CA135087J546", "CA135087J967",
+         "CA135087K528", "CA135087K940", "CA135087L518", "CA135087L930",
+         "CA135087M847", "CA135087N837", "CA135087P576")
+coupon = c(1.75, 0.25, 2.25, 1.5, 1.25, 0.5, 0.25, 1, 1.25, 2.75, 3.5)
+issue_date = c("10/6/2017", "5/14/2021", "10/5/2018", "4/5/2019", "10/11/2019",
+               "4/3/2020", "10/9/2020", "4/16/2021", "10/15/2021", "5/13/2022",
+               "10/21/2022")
+maturity_date = c("3/1/2023", "8/1/2023", "3/1/2024", "9/1/2024", "3/1/2025",
+                  "9/1/2025", "3/1/2026", "9/1/2026", "3/1/2027", "9/1/2027",
+                  "3/1/2028")
+# "time" is the variable that indicates year after adjustment.
+time = c(0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75, 5.25)
+
+price_1 = c(99.71, 97.8, 97.93, 96.48, 95.38, 92.74, 91.08, 92.72, 93.14, 99.1, 102.73)
+price_2 = c(99.7, 97.801, 97.87, 96.45, 95.42, 92.75, 91.19, 92.84, 93.25, 99.22, 102.84)
+price_3 = c(99.72, 97.833, 97.95, 96.58, 95.61, 93.03, 91.43, 93.24, 93.73, 99.71, 103.4)
+price_4 = c(99.72, 97.841, 97.92, 96.5, 95.59, 93.03, 91.51, 93.29, 93.78, 99.71, 103.38)
+price_5 = c(99.74, 97.828, 97.87, 96.4, 95.44, 92.87, 91.32, 92.95, 93.39, 99.24, 102.83)
+price_6 = c(99.75, 97.845, 97.86, 96.4, 95.38, 92.82, 91.23, 92.9, 93.33, 99.14, 102.73)
+price_7 = c(99.76, 97.866, 97.87, 96.39, 95.34, 92.81, 91.21, 92.91, 93.35, 99.15, 102.77)
+price_8 = c(99.77, 97.903, 97.92, 96.47, 95.47, 92.97, 91.41, 93.05, 93.5, 99.29, 102.92)
+price_9 = c(99.78, 97.909, 97.92, 96.48, 95.5, 93, 91.45, 93.04, 93.46, 99.24, 102.82)
+price_10 = c(99.79, 97.903, 97.84, 96.29, 95.3, 92.72, 91.17, 92.77, 93.14, 98.86, 102.40)
+
+bond_prices = tibble(ISIN, coupon, issue_date, maturity_date, time, price_1, price_2, price_3,
+                     price_4, price_5, price_6, price_7, price_8, price_9, price_10)
+```
+
+### 4.(a)
+
+```{r}
+# Calculate yield to maturity
+yield = matrix(rep(0, 10*10), 10, 10)
+
+for (i in c(1:10)){
+  for (j in c(2:11)){
+    time_point = c(0, bond_prices$time[1:j])
+    cp = bond_prices$coupon[j]
+    # Calculate the dirty price
+    accrued = 0.25 * cp
+    dirty_price = as.double(bond_prices[j, i+5]) + accrued
+    cash_flow = c(-dirty_price, rep(cp/2, length(time_point)-2), 100 + cp/2)
+    # Calculate the YTM
+    bond_val = function(r, flow, t = time_point) sum(flow / (1 + r)^t)
+    ytm = function(flow) {uniroot(bond_val, c(0, 1), flow = flow)$root}
+    yield[i,j-1] = ytm(cash_flow)
+  }
+}
+```
+
+```{r}
+# Plot the yield curve
+time_point = seq(0.75, 5.25, 0.5)
+plot(rep(time_point, each = 10), yield, main = "Yield to maturity", xlab = "Time (in years)",
+     ylab = "YTM")
+for (i in c(1:10)){
+  interpolation = spline(time_point, yield[i,], n = length(time_point))
+  lines(interpolation, lty = i, col = i)
+}
+legend(x = "topright", legend = c("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", 
+                                     "Day 6", "Day 7", "Day 8", "Day 9", "Day 10"),
+       lwd = 1, col = c(1:10), lty = c(1:10), cex = 0.7)
+```
+
+### 4.(b)
+
+```{r}
+# Calculate the spot rates
+spot = matrix(rep(0, 10*11), 10, 11)
+for (i in c(1:10)){
+  cp = bond_prices$coupon[1]
+  accrued = 0.25 * cp
+  price = as.double(bond_prices[1, i+5])
+  dirty_price = price + accrued
+  spot_rate = -log(dirty_price/(100+cp/2))/bond_prices$time[1]
+  spot[i, 1] = spot_rate
+}
+
+for (i in c(1:10)){
+  for (j in c(2:11)){
+    t = bond_prices$time[1:j-1]
+    r = spot[i,1:j-1]
+    cp = bond_prices$coupon[j]
+    price = as.double(bond_prices[j, i+5])
+    # Calculate the dirty price
+    accrued = 0.25 * cp
+    dirty_price = price + accrued
+    spot_rate = -log((dirty_price - sum((cp/2)*exp(-r*t)))/(100+cp/2))/bond_prices$time[j]
+    spot[i, j] = spot_rate
+  }
+}
+
+```
+
+```{r}
+# Plot the spot curve
+time_point = seq(0.75, 5.25, 0.5)
+plot(rep(time_point, each = 10), spot[,-1], main = "Spot curve", xlab = "Time (in years)",
+     ylab = "Spot rate")
+for (i in c(1:10)){
+  interpolation = spline(time_point, spot[i,-1], n = length(time_point))
+  lines(interpolation, col = i, lty = i)
+}
+legend(x = "topright", legend = c("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", 
+                                     "Day 6", "Day 7", "Day 8", "Day 9", "Day 10"),
+       lwd = 1, col = c(1:10), lty = c(1:10), cex = 0.7)
+```
+
+### 4.(c)
+
+```{r}
+# Calculate the forward yield
+time_point = seq(2, 5, 0.25)
+n = length(time_point)
+forward = matrix(rep(0, n*10), 10, n)
+
+for (i in c(1:10)){
+  forward[i,] = -(-approx(seq(0.25, 5.25, 0.5), spot[i,], time_point)$y * time_point +
+                  approx(seq(0.25, 5.25, 0.5), spot[i,], 1)$y)/(time_point-1)
+}
+
+```
+
+```{r}
+# Plot the forward curve
+plot(rep(time_point, each = 10), forward, main = "1-year forward curve", 
+     xlab = "Time (in years)", ylab = "Forward yield")
+for (i in c(1:10)){
+  lines(spline(time_point, forward[i,], n = n), col = i, lty = i)
+}
+legend(x = "topright", legend = c("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", 
+                                     "Day 6", "Day 7", "Day 8", "Day 9", "Day 10"),
+       lwd = 1, col = c(1:10), lty = c(1:10), cex = 0.7)
+```
+
+### 5.
+
+```{r}
+# Calculate the log returns
+spot_rates = matrix(rep(0, 50), 5, 10)
+for (j in c(1:10)){
+  for (i in c(1:5)){
+    spot_rates[i, j] = approx(seq(0.25, 5.25, 0.5), spot[j,], i)$y
+  }
+}
+
+spot_returns = matrix(rep(0, 45), 5, 9)
+for (i in c(1:5)){
+  spot_returns[i,] = log(spot_rates[i,2:10]/spot_rates[i,1:9])
+}
+
+# Calculate the covariance matrix
+spot_cov = cov(t(spot_returns))
+round(spot_cov,6)
+```
+
+
+```{r}
+# Calculate the log returns
+forward_rates = matrix(rep(0, 40), 4, 10)
+for (j in c(1:10)){
+  for (i in c(1:4)){
+    forward_rates[i, j] = approx(seq(2, 5, 0.25), forward[j,], i+1)$y
+  }
+}
+
+forward_returns = matrix(rep(0, 36), 4, 9)
+for (i in c(1:4)){
+  forward_returns[i,] = log(forward_rates[i,2:10]/forward_rates[i,1:9])
+}
+
+# Calculate the covariance matrix
+forward_cov = cov(t(forward_returns))
+round(forward_cov, 6)
+```
+
+
+### 6.
+
+```{r}
+# Calculate the eigenvalues and eigenvectors
+spot_eigen = eigen(spot_cov)
+forward_eigen = eigen(forward_cov)
+spot_eigen$values
+round(spot_eigen$vectors,3)
+forward_eigen$values
+round(forward_eigen$vectors,3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
